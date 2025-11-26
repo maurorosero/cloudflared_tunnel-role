@@ -1,0 +1,9 @@
+---
+- name: Gestionar túnel (crear o eliminar según state)
+  when: cloudflared_tunnel_state == 'present'
+  ansible.builtin.include_tasks: create.yml
+
+- name: Eliminar túnel si se solicita
+  when: cloudflared_tunnel_state == 'absent'
+  ansible.builtin.include_tasks: delete.yml
+

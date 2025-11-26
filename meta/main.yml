@@ -1,0 +1,21 @@
+---
+galaxy_info:
+  author: Mauro Rosero Pérez
+  description: Role CRUD para gestionar túneles de Cloudflare Tunnel (cloudflared)
+  license: MIT
+  min_ansible_version: '2.9'
+  platforms:
+    - name: Debian
+      versions:
+        - all
+    - name: Ubuntu
+      versions:
+        - all
+  galaxy_tags:
+    - cloudflare
+    - cloudflared
+    - tunnel
+    - networking
+
+dependencies: []
+

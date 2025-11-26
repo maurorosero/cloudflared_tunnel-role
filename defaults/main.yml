@@ -1,0 +1,12 @@
+---
+# Acción a realizar
+cloudflared_tunnel_action: manage  # create, delete, list, manage
+
+# Túnel
+# cloudflared_tunnel_name debe ser proporcionado como variable
+cloudflared_tunnel_state: present  # present, absent
+
+# Ruta del certificado (opcional, por defecto ~/.cloudflared/cert.pem)
+# Si el certificado está en otra ubicación, especifica la ruta completa
+cloudflared_cert_location: ~/.cloudflared/cert.pem
+

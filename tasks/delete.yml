@@ -1,0 +1,81 @@
+---
+- name: Expandir ruta del certificado si contiene ~
+  ansible.builtin.set_fact:
+    cloudflared_cert_path: "{{ cloudflared_cert_location | replace('~', ansible_env.HOME) }}"
+
+- name: Verificar si el certificado está en ubicación no predeterminada
+  ansible.builtin.set_fact:
+    use_custom_cert: "{{ cloudflared_cert_path != (ansible_env.HOME + '/.cloudflared/cert.pem') }}"
+
+- name: Construir comando para listar túneles (formato JSON)
+  ansible.builtin.set_fact:
+    tunnel_list_argv: "{{ (['cloudflared', 'tunnel', '--origincert', cloudflared_cert_path, 'list', '--output', 'json'] if use_custom_cert | default(false) else ['cloudflared', 'tunnel', 'list', '--output', 'json']) }}"
+
+- name: Verificar si el túnel existe
+  command:
+    argv: "{{ tunnel_list_argv }}"
+  register: cloudflared_tunnel_list_check
+  changed_when: false
+  failed_when: false
+
+- name: Verificar si el túnel existe en la lista (usando JSON)
+  ansible.builtin.set_fact:
+    tunnel_list_json: "{{ cloudflared_tunnel_list_check.stdout | from_json | default([]) }}"
+  when:
+    - cloudflared_tunnel_list_check.rc == 0
+    - cloudflared_tunnel_list_check.stdout | length > 0
+
+- name: Verificar si el túnel existe en la lista JSON
+  ansible.builtin.set_fact:
+    tunnel_exists: "{{ cloudflared_tunnel_name in (tunnel_list_json | json_query('[*].name') | default([])) }}"
+  when:
+    - tunnel_list_json is defined
+    - tunnel_list_json | length > 0
+
+- name: Verificar si el túnel existe en la lista (fallback a búsqueda de texto)
+  ansible.builtin.set_fact:
+    tunnel_exists: "{{ cloudflared_tunnel_name in cloudflared_tunnel_list_check.stdout or cloudflared_tunnel_name in cloudflared_tunnel_list_check.stdout_lines | join(' ') }}"
+  when:
+    - cloudflared_tunnel_list_check.rc == 0
+    - tunnel_exists is not defined
+
+- name: Establecer valor por defecto si no se pudo determinar
+  ansible.builtin.set_fact:
+    tunnel_exists: false
+  when: tunnel_exists is not defined
+
+- name: Construir comando para eliminar túnel
+  ansible.builtin.set_fact:
+    tunnel_delete_argv: "{{ (['cloudflared', 'tunnel', '--origincert', cloudflared_cert_path, 'delete', cloudflared_tunnel_name] if use_custom_cert | default(false) else ['cloudflared', 'tunnel', 'delete', cloudflared_tunnel_name]) }}"
+
+- name: Eliminar túnel de Cloudflare
+  command:
+    argv: "{{ tunnel_delete_argv }}"
+  register: cloudflared_tunnel_delete_result
+  failed_when: false
+  changed_when: cloudflared_tunnel_delete_result.rc == 0
+  when: tunnel_exists | default(false) | bool == true
+
+- name: Mostrar resultado de eliminación
+  ansible.builtin.debug:
+    msg: "Túnel '{{ cloudflared_tunnel_name }}' eliminado exitosamente."
+  when:
+    - cloudflared_tunnel_delete_result is defined
+    - cloudflared_tunnel_delete_result.rc == 0
+
+- name: Informar que no se eliminó nada (ya estaba borrado) - idempotencia
+  ansible.builtin.debug:
+    msg: "El túnel '{{ cloudflared_tunnel_name }}' no existe o ya estaba eliminado. No se realizaron cambios."
+  when:
+    - tunnel_exists | default(false) | bool == false
+    - cloudflared_tunnel_action == 'delete'
+  changed_when: false
+
+- name: Mostrar error si la eliminación falló
+  ansible.builtin.fail:
+    msg: "Error al eliminar el túnel '{{ cloudflared_tunnel_name }}': {{ cloudflared_tunnel_delete_result.stderr | default(cloudflared_tunnel_delete_result.msg | default('Error desconocido')) }}"
+  when:
+    - cloudflared_tunnel_delete_result is defined
+    - cloudflared_tunnel_delete_result.rc != 0
+    - tunnel_exists | default(false) | bool == true
+

@@ -1,0 +1,30 @@
+---
+- name: Expandir ruta del certificado si contiene ~
+  ansible.builtin.set_fact:
+    cloudflared_cert_path: "{{ cloudflared_cert_location | replace('~', ansible_env.HOME) }}"
+
+- name: Verificar si el certificado está en ubicación no predeterminada
+  ansible.builtin.set_fact:
+    use_custom_cert: "{{ cloudflared_cert_path != (ansible_env.HOME + '/.cloudflared/cert.pem') }}"
+
+- name: Construir comando para listar túneles
+  ansible.builtin.set_fact:
+    tunnel_list_argv: "{{ (['cloudflared', 'tunnel', '--origincert', cloudflared_cert_path, 'list'] if use_custom_cert | default(false) else ['cloudflared', 'tunnel', 'list']) }}"
+
+- name: Listar túneles de Cloudflare
+  command:
+    argv: "{{ tunnel_list_argv }}"
+  register: cloudflared_tunnel_list_result
+  changed_when: false
+  failed_when: false
+
+- name: Mostrar lista de túneles
+  ansible.builtin.debug:
+    msg: "{{ cloudflared_tunnel_list_result.stdout_lines }}"
+  when: cloudflared_tunnel_list_result.rc == 0
+
+- name: Informar si no hay túneles o hubo error
+  ansible.builtin.debug:
+    msg: "{{ 'No se encontraron túneles' if cloudflared_tunnel_list_result.rc == 0 and cloudflared_tunnel_list_result.stdout | length == 0 else 'Error al listar túneles: ' + cloudflared_tunnel_list_result.stderr | default('Error desconocido') }}"
+  when: cloudflared_tunnel_list_result.rc != 0 or cloudflared_tunnel_list_result.stdout | length == 0
+

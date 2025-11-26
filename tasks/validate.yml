@@ -1,0 +1,36 @@
+---
+- name: Validar que se proporcionó el nombre del túnel
+  when: cloudflared_tunnel_action in ['create', 'delete', 'manage']
+  ansible.builtin.assert:
+    that:
+      - cloudflared_tunnel_name is defined
+      - cloudflared_tunnel_name != omit
+      - cloudflared_tunnel_name | length > 0
+    fail_msg: "Se requiere 'cloudflared_tunnel_name' para la acción '{{ cloudflared_tunnel_action }}'."
+
+- name: Validar valor permitido para cloudflared_tunnel_state
+  when: cloudflared_tunnel_state is defined
+  ansible.builtin.assert:
+    that:
+      - cloudflared_tunnel_state in ['present', 'absent']
+    fail_msg: >
+      La variable 'cloudflared_tunnel_state' solo admite los valores: present o absent.
+
+- name: Validar valor permitido para cloudflared_tunnel_action
+  ansible.builtin.assert:
+    that:
+      - cloudflared_tunnel_action in ['create', 'delete', 'list', 'manage']
+    fail_msg: >
+      La variable 'cloudflared_tunnel_action' solo admite los valores: create, delete, list, manage.
+
+- name: Verificar que cloudflared está instalado
+  command: cloudflared --version
+  register: cloudflared_version_check
+  changed_when: false
+  failed_when: false
+
+- name: Fallar si cloudflared no está instalado
+  ansible.builtin.fail:
+    msg: "cloudflared no está instalado. Instálalo antes de usar este role."
+  when: cloudflared_version_check.rc != 0
+

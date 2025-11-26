@@ -1,0 +1,7 @@
+---
+- name: Validar parámetros
+  ansible.builtin.include_tasks: validate.yml
+
+- name: Ejecutar acción según cloudflared_tunnel_action
+  ansible.builtin.include_tasks: "{{ cloudflared_tunnel_action }}.yml"
+
