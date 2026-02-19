@@ -1,11 +1,11 @@
 ---
 - name: Expandir ruta del certificado si contiene ~
   ansible.builtin.set_fact:
-    cloudflared_cert_path: "{{ cloudflared_cert_location | replace('~', ansible_env.HOME) }}"
+    cloudflared_cert_path: "{{ cloudflared_cert_location | replace('~', ansible_facts['env'].HOME) }}"
 
 - name: Verificar si el certificado está en ubicación no predeterminada
   ansible.builtin.set_fact:
-    use_custom_cert: "{{ cloudflared_cert_path != (ansible_env.HOME + '/.cloudflared/cert.pem') }}"
+    use_custom_cert: "{{ cloudflared_cert_path != (ansible_facts['env'].HOME + '/.cloudflared/cert.pem') }}"
 
 - name: Construir comando para listar túneles (formato JSON)
   ansible.builtin.set_fact:
